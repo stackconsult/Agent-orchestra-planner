@@ -1,0 +1,155 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: orchestra-agent-service
+  namespace: orchestra-planner
+  labels:
+    app: q-and-a-orchestra-agent
+    component: orchestra-agent
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8000
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  - port: 9090
+    targetPort: 9090
+    protocol: TCP
+    name: metrics
+  selector:
+    app: q-and-a-orchestra-agent
+    component: orchestra-agent
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+  namespace: orchestra-planner
+  labels:
+    app: redis
+    component: redis
+spec:
+  type: ClusterIP
+  ports:
+  - port: 6379
+    targetPort: 6379
+    protocol: TCP
+    name: redis
+  selector:
+    app: redis
+    component: redis
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+  namespace: orchestra-planner
+  labels:
+    app: postgres
+    component: postgres
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5432
+    targetPort: 5432
+    protocol: TCP
+    name: postgres
+  selector:
+    app: postgres
+    component: postgres
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-service
+  namespace: orchestra-planner
+  labels:
+    app: prometheus
+    component: prometheus
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9090
+    targetPort: 9090
+    protocol: TCP
+    name: prometheus
+  selector:
+    app: prometheus
+    component: prometheus
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-service
+  namespace: orchestra-planner
+  labels:
+    app: grafana
+    component: grafana
+spec:
+  type: ClusterIP
+  ports:
+  - port: 3000
+    targetPort: 3000
+    protocol: TCP
+    name: grafana
+  selector:
+    app: grafana
+    component: grafana
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: jaeger-service
+  namespace: orchestra-planner
+  labels:
+    app: jaeger
+    component: jaeger
+spec:
+  type: ClusterIP
+  ports:
+  - port: 16686
+    targetPort: 16686
+    protocol: TCP
+    name: jaeger-ui
+  - port: 14268
+    targetPort: 14268
+    protocol: TCP
+    name: jaeger-collector
+  selector:
+    app: jaeger
+    component: jaeger
+
+---
+
+# Optional: LoadBalancer service for external access
+apiVersion: v1
+kind: Service
+metadata:
+  name: orchestra-agent-lb
+  namespace: orchestra-planner
+  labels:
+    app: q-and-a-orchestra-agent
+    component: orchestra-agent
+  annotations:
+    cloud.google.com/load-balancer-type: "External"
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  selector:
+    app: q-and-a-orchestra-agent
+    component: orchestra-agent

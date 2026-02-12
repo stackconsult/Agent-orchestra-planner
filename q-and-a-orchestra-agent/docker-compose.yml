@@ -1,0 +1,188 @@
+version: '3.8'
+
+services:
+  # Redis for message bus
+  redis:
+    image: redis:7-alpine
+    container_name: orchestra-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - orchestra-network
+
+  # PostgreSQL for session storage
+  postgres:
+    image: postgres:15-alpine
+    container_name: orchestra-postgres
+    environment:
+      POSTGRES_DB: orchestra_planner
+      POSTGRES_USER: orchestra
+      POSTGRES_PASSWORD: orchestra_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orchestra -d orchestra_planner"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - orchestra-network
+
+  # Q&A Orchestra Agent
+  orchestra-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: orchestra-agent
+    ports:
+      - "8000:8000"
+      - "9090:9090"  # Metrics port
+    environment:
+      # Database
+      DATABASE_URL: postgresql+asyncpg://orchestra:orchestra_password@postgres:5432/orchestra_planner
+      
+      # Redis
+      REDIS_URL: redis://redis:6379/0
+      
+      # LLM
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      
+      # GitHub (optional)
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+      GITHUB_REPO_OWNER: ${GITHUB_REPO_OWNER:-stackconsult}
+      GITHUB_REPO_NAME: ${GITHUB_REPO_NAME:-Agent-orchestra-planner}
+      
+      # Local repo path (optional)
+      LOCAL_REPO_PATH: /app/repo
+      
+      # API Configuration
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+      DEBUG: "false"
+      
+      # Observability
+      PROMETHEUS_PORT: 9090
+      LOG_LEVEL: INFO
+      
+      # Jaeger (optional)
+      JAEGER_ENDPOINT: ${JAEGER_ENDPOINT:-http://jaeger:14268/api/traces}
+      
+      # Rate Limits
+      MAX_DESIGN_ITERATIONS_PER_HOUR: 50
+      MAX_IMPLEMENTATIONS_PER_DAY: 10
+      MAX_CONCURRENT_OPERATIONS: 3
+      
+      # Cost Tracking
+      MONTHLY_BUDGET_LIMIT: 500
+      COST_ALERT_THRESHOLD: 0.8
+    volumes:
+      - ./logs:/app/logs
+      - ../:/app/repo:ro  # Mount parent directory as read-only repo
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - orchestra-network
+
+  # Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: orchestra-prometheus
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./deployment/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    networks:
+      - orchestra-network
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: orchestra-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./deployment/grafana/provisioning:/etc/grafana/provisioning
+      - ./deployment/grafana/dashboards:/var/lib/grafana/dashboards
+    restart: unless-stopped
+    networks:
+      - orchestra-network
+
+  # Jaeger for distributed tracing (optional)
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: orchestra-jaeger
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "14268:14268"  # HTTP collector
+    environment:
+      COLLECTOR_OTLP_ENABLED: true
+    restart: unless-stopped
+    networks:
+      - orchestra-network
+
+  # Redis Commander for Redis management (optional)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: orchestra-redis-commander
+    ports:
+      - "8081:8081"
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    depends_on:
+      - redis
+    restart: unless-stopped
+    networks:
+      - orchestra-network
+
+volumes:
+  redis_data:
+    driver: local
+  postgres_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  orchestra-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
