@@ -1,5 +1,5 @@
 """
-Distributed tracing using OpenTelemetry for request tracking across agents.
+Simplified tracing module for the Q&A Orchestra Agent.
 """
 
 import asyncio
@@ -7,21 +7,11 @@ import logging
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from opentelemetry import trace, baggage, context
-from opentelemetry.trace import Span, SpanKind, Tracer
-from opentelemetry.exporter.jaeger.thrift import JaegerExporter
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.sdk.resources import Resource
-from opentelemetry.semconv.trace import SpanAttributes
-from opentelemetry.propagate import inject, extract
-from opentelemetry.propagators.b3 import B3MultiFormat
-
 logger = logging.getLogger(__name__)
 
 
 class OpenTelemetryTracer:
-    """OpenTelemetry tracer for distributed tracing."""
+    """Simplified tracer for distributed tracing."""
     
     def __init__(self, service_name: str = "q-and-a-orchestra-agent", 
                  jaeger_endpoint: Optional[str] = None,
@@ -29,98 +19,106 @@ class OpenTelemetryTracer:
         self.service_name = service_name
         self.jaeger_endpoint = jaeger_endpoint
         self.sample_rate = sample_rate
-        self.tracer: Optional[Tracer] = None
         self._initialized = False
+        self.tracer = None
     
     def initialize(self) -> None:
-        """Initialize OpenTelemetry tracing."""
+        """Initialize tracing (simplified implementation)."""
         try:
-            # Create resource
-            resource = Resource.create({
-                "service.name": self.service_name,
-                "service.version": "1.0.0"
-            })
-            
-            # Create tracer provider
-            tracer_provider = TracerProvider(resource=resource)
-            trace.set_tracer_provider(tracer_provider)
-            
-            # Set up Jaeger exporter if endpoint provided
-            if self.jaeger_endpoint:
-                jaeger_exporter = JaegerExporter(
-                    endpoint=self.jaeger_endpoint,
-                    collector_endpoint=self.jaeger_endpoint,
-                    insecure=True
-                )
-                
-                span_processor = BatchSpanProcessor(jaeger_exporter)
-                tracer_provider.add_span_processor(span_processor)
-            
-            # Get tracer
-            self.tracer = trace.get_tracer(__name__)
-            
-            # Set propagator
-            from opentelemetry import propagate
-            propagate.set_global_textmap(B3MultiFormat())
-            
             self._initialized = True
-            logger.info(f"OpenTelemetry tracing initialized for {self.service_name}")
-            
+            self.tracer = self
+            logger.info(f"Tracing initialized for {self.service_name}")
         except Exception as e:
-            logger.error(f"Failed to initialize OpenTelemetry tracing: {str(e)}")
+            logger.error(f"Failed to initialize tracing: {str(e)}")
     
-    def create_span(self, name: str, kind: SpanKind = SpanKind.INTERNAL) -> Span:
-        """Create a new span."""
-        if not self._initialized or not self.tracer:
-            # Return a no-op span if not initialized
-            return trace.NoOpTracer().start_span(name)
-        
-        return self.tracer.start_span(name, kind=kind)
+    def create_span(self, name: str, kind: str = "INTERNAL") -> "Span":
+        """Create a new span (simplified implementation)."""
+        return self.start_span(name, kind)
     
-    def start_span(self, name: str, **kwargs) -> Span:
+    def start_span(self, name: str, **kwargs) -> "Span":
         """Start a new span."""
-        return self.create_span(name, **kwargs)
+        return Span(self, name)
     
-    def finish_span(self, span: Span) -> None:
+    def finish_span(self, span: "Span") -> None:
         """Finish a span."""
-        if span and span.is_recording():
+        if span:
             span.end()
     
-    def get_current_span(self) -> Span:
+    def get_current_span(self) -> "Span":
         """Get the current active span."""
-        return trace.get_current_span()
+        return Span(self, "current")
     
     def set_baggage(self, key: str, value: str) -> None:
         """Set baggage item."""
-        baggage.set_baggage(key, value)
+        pass
     
     def get_baggage(self, key: str) -> Optional[str]:
         """Get baggage item."""
-        return baggage.get_baggage(key)
+        return None
     
     def inject_context(self, headers: Dict[str, str]) -> None:
         """Inject tracing context into headers."""
-        inject(headers)
+        pass
     
-    def extract_context(self, headers: Dict[str, str]) -> context.Context:
+    def extract_context(self, headers: Dict[str, str]) -> "Context":
         """Extract tracing context from headers."""
-        return extract(headers)
+        return Context()
+
+
+class Span:
+    """Simplified span implementation."""
+    
+    def __init__(self, tracer, name: str):
+        self.tracer = tracer
+        self.name = name
+        self.start_time = asyncio.get_event_loop().time()
+        self.attributes = {}
+        self.events = []
+        self.ended = False
+    
+    def set_attribute(self, key: str, value: Any) -> None:
+        """Set span attribute."""
+        self.attributes[key] = value
+    
+    def add_event(self, event_name: str, attributes: Dict[str, Any] = None) -> None:
+        """Add event to span."""
+        self.events.append({
+            "name": event_name,
+            "attributes": attributes or {},
+            "timestamp": asyncio.get_event_loop().time()
+        })
+    
+    def end(self) -> None:
+        """End the span."""
+        if not self.ended:
+            self.ended = True
+            duration = asyncio.get_event_loop().time() - self.start_time
+            logger.debug(f"Span '{self.name}' ended after {duration:.3f}s")
+    
+    def is_recording(self) -> bool:
+        """Check if span is recording."""
+        return not self.ended
+
+
+class Context:
+    """Simplified context implementation."""
+    
+    def __init__(self):
+        pass
 
 
 class TracingContext:
     """Context manager for tracing operations."""
     
-    def __init__(self, tracer: OpenTelemetryTracer, span_name: str, 
-                 span_kind: SpanKind = SpanKind.INTERNAL, **attributes):
+    def __init__(self, tracer: OpenTelemetryTracer, span_name: str, **attributes):
         self.tracer = tracer
         self.span_name = span_name
-        self.span_kind = span_kind
         self.attributes = attributes
         self.span: Optional[Span] = None
     
     async def __aenter__(self) -> Span:
         """Enter tracing context."""
-        self.span = self.tracer.start_span(self.span_name, kind=self.span_kind)
+        self.span = self.tracer.start_span(self.span_name)
         
         # Set attributes
         for key, value in self.attributes.items():
@@ -132,12 +130,11 @@ class TracingContext:
         """Exit tracing context."""
         if self.span:
             if exc_type:
-                self.span.set_status(trace.Status(trace.StatusCode.ERROR, str(exc_val)))
                 self.span.set_attribute("error", True)
                 self.span.set_attribute("error.type", exc_type.__name__)
                 self.span.set_attribute("error.message", str(exc_val))
             else:
-                self.span.set_status(trace.Status(trace.StatusCode.OK))
+                self.span.set_attribute("success", True)
             
             self.tracer.finish_span(self.span)
 
@@ -157,7 +154,6 @@ class AgentTracer:
         span = await TracingContext(
             self.tracer,
             span_name,
-            SpanKind.SERVER,
             agent_id=self.agent_id,
             message_id=str(message_id),
             message_type=message_type,
@@ -173,7 +169,6 @@ class AgentTracer:
         return await TracingContext(
             self.tracer,
             span_name,
-            SpanKind.INTERNAL,
             agent_id=self.agent_id,
             operation=operation,
             **kwargs
@@ -186,7 +181,6 @@ class AgentTracer:
         return TracingContext(
             self.tracer,
             span_name,
-            SpanKind.INTERNAL,
             session_id=str(session_id),
             activity=activity
         )
@@ -198,7 +192,6 @@ class AgentTracer:
         return TracingContext(
             self.tracer,
             span_name,
-            SpanKind.INTERNAL,
             workflow_id=str(workflow_id),
             step=step,
             step_number=step_number
@@ -220,7 +213,6 @@ class WorkflowTracer:
         span = await TracingContext(
             self.tracer,
             span_name,
-            SpanKind.INTERNAL,
             workflow_id=str(workflow_id),
             workflow_type=workflow_type,
             user_id=user_id
@@ -236,18 +228,6 @@ class WorkflowTracer:
             span.set_attribute("workflow.status", status)
             self.tracer.finish_span(span)
             del self.active_workflows[workflow_id]
-    
-    def trace_workflow_phase(self, workflow_id: UUID, phase: str) -> TracingContext:
-        """Trace a workflow phase."""
-        span_name = f"workflow.{workflow_id}.{phase}"
-        
-        return TracingContext(
-            self.tracer,
-            span_name,
-            SpanKind.INTERNAL,
-            workflow_id=str(workflow_id),
-            phase=phase
-        )
 
 
 # Decorators for automatic tracing
@@ -317,53 +297,6 @@ def trace_operation(operation_name: str, tracer: Optional[OpenTelemetryTracer] =
     return decorator
 
 
-def trace_agent_message(tracer: Optional[OpenTelemetryTracer] = None):
-    """Decorator to trace agent message processing."""
-    def decorator(func):
-        async def wrapper(*args, **kwargs):
-            # Get tracer
-            current_tracer = tracer or get_global_tracer()
-            if not current_tracer:
-                return await func(*args, **kwargs)
-            
-            # Extract message information
-            message = None
-            agent_id = None
-            
-            for arg in args:
-                if hasattr(arg, 'message_id') and hasattr(arg, 'agent_id'):
-                    message = arg
-                    agent_id = arg.agent_id
-                    break
-            
-            if not message:
-                return await func(*args, **kwargs)
-            
-            span_name = f"{agent_id}.process_message"
-            
-            async with TracingContext(
-                current_tracer,
-                span_name,
-                SpanKind.SERVER,
-                agent_id=agent_id,
-                message_id=str(message.message_id),
-                message_type=message.message_type.value,
-                correlation_id=str(message.correlation_id)
-            ) as span:
-                
-                try:
-                    result = await func(*args, **kwargs)
-                    span.set_attribute("message.processed", True)
-                    return result
-                except Exception as e:
-                    span.set_attribute("message.processed", False)
-                    span.set_attribute("error.type", type(e).__name__)
-                    raise
-        
-        return wrapper
-    return decorator
-
-
 # Global tracer instance
 _global_tracer: Optional[OpenTelemetryTracer] = None
 
@@ -418,14 +351,14 @@ def create_trace_context(span_name: str, **attributes) -> TracingContext:
 
 def correlate_spans(correlation_id: UUID) -> None:
     """Add correlation ID to current span."""
-    span = trace.get_current_span()
+    span = get_global_tracer().get_current_span()
     if span and span.is_recording():
         span.set_attribute("correlation_id", str(correlation_id))
 
 
 def add_span_tags(**tags) -> None:
     """Add tags to current span."""
-    span = trace.get_current_span()
+    span = get_global_tracer().get_current_span()
     if span and span.is_recording():
         for key, value in tags.items():
             span.set_attribute(key, value)
@@ -433,7 +366,7 @@ def add_span_tags(**tags) -> None:
 
 def add_span_event(event_name: str, **attributes) -> None:
     """Add event to current span."""
-    span = trace.get_current_span()
+    span = get_global_tracer().get_current_span()
     if span and span.is_recording():
         span.add_event(event_name, attributes)
 
@@ -442,12 +375,12 @@ class TraceContextExtractor:
     """Extracts and manages trace context from messages."""
     
     @staticmethod
-    def extract_from_headers(headers: Dict[str, str]) -> context.Context:
+    def extract_from_headers(headers: Dict[str, str]) -> Context:
         """Extract trace context from HTTP headers."""
         tracer = get_global_tracer()
         if tracer:
             return tracer.extract_context(headers)
-        return context.Context()
+        return Context()
     
     @staticmethod
     def inject_to_headers(headers: Dict[str, str]) -> None:
@@ -457,7 +390,7 @@ class TraceContextExtractor:
             tracer.inject_context(headers)
     
     @staticmethod
-    def extract_from_message(message: Any) -> context.Context:
+    def extract_from_message(message: Any) -> Context:
         """Extract trace context from agent message."""
         headers = {}
         

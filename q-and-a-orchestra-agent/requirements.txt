@@ -1,15 +1,13 @@
 # Core dependencies
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
-pydantic==2.5.0
+pydantic==2.3.0
 pydantic-settings==2.1.0
 python-multipart==0.0.6
 
-# Database
+# Database (using simpler setup)
 sqlalchemy==2.0.23
 alembic==1.13.1
-asyncpg==0.29.0
-psycopg2-binary==2.9.9
 
 # Message bus
 redis==5.0.1
@@ -24,10 +22,6 @@ anthropic==0.7.8
 # Observability
 prometheus-client==0.19.0
 structlog==23.2.0
-opentelemetry-api==1.21.0
-opentelemetry-sdk==1.21.0
-opentelemetry-instrumentation-fastapi==0.42b0
-opentelemetry-exporter-prometheus==1.12.0rc1
 
 # Testing
 pytest==7.4.3
@@ -44,7 +38,6 @@ pre-commit==3.6.0
 # Security
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
-python-multipart==0.0.6
 
 # Utilities
 python-dotenv==1.0.0

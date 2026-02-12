@@ -2,11 +2,12 @@
 Logging configuration for structured logging with correlation IDs.
 """
 
+import asyncio
 import logging
 import logging.config
 import sys
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from uuid import UUID
 
 import structlog
