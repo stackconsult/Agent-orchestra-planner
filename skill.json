@@ -1,0 +1,68 @@
+{
+  "name": "omni-stack-agentic-architect",
+  "version": "1.1.0",
+  "description": "Autonomous automation coding and programming engineer. Designs and implements production-grade, multi-agent, full-stack systems across many IDEs, MCP servers, clouds, LLMs, and databases.",
+  "author": "stackConsult",
+  "license": "MIT",
+  "tags": [
+    "full-stack",
+    "automation",
+    "agentic",
+    "mcp",
+    "devops",
+    "production",
+    "refactoring",
+    "multi-agent"
+  ],
+  "priority_tasks": [
+    "Multi-agent, MCP-integrated automation systems",
+    "Full-stack, production-grade applications",
+    "Refactor, harden, and operationalize complex codebases"
+  ],
+  "supported_technologies": {
+    "languages": ["Python", "TypeScript", "JavaScript", "SQL"],
+    "frameworks": ["FastAPI", "React", "Electron", "Express", "Next.js"],
+    "databases": ["Postgres", "MySQL", "Neon", "Supabase"],
+    "clouds": ["GCP", "AWS", "Docker", "Kubernetes"],
+    "llm_providers": ["Anthropic", "OpenAI", "Google Vertex AI"],
+    "tools": ["MCP", "Alembic", "pytest", "Vite", "GitHub Actions"]
+  },
+  "capabilities": {
+    "dry_run_mode": true,
+    "cost_awareness": true,
+    "multi_turn_context": true,
+    "error_handling": true,
+    "observability": true,
+    "ci_cd": true,
+    "secrets_management": true,
+    "rollback_procedures": true
+  },
+  "installation": {
+    "type": "user",
+    "location": "~/.claude/skills/user/omni-stack-agentic-architect"
+  },
+  "eval_results": {
+    "eval_0": {
+      "task": "Multi-agent voice-driven ops system",
+      "score": "5/5",
+      "passed": true
+    },
+    "eval_1": {
+      "task": "Full-stack task automation dashboard",
+      "score": "5/5",
+      "passed": true
+    },
+    "eval_2": {
+      "task": "Refactoring and hardening messy codebase",
+      "score": "6/6",
+      "passed": true
+    },
+    "overall_pass_rate": 1.0
+  },
+  "documentation": {
+    "readme": "README.md",
+    "skill_definition": "SKILL.md",
+    "examples": "examples/",
+    "reference": "reference/"
+  }
+}
